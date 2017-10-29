@@ -4,7 +4,7 @@
 
 This `ARM` template deploys multiple `HDInsight` clusters (`Spark` + `Kafka`) in the same `VNet`. Spark's storage is primarily backed by `ADLS` while Kafka uses `Blob` Storage.
 
-Since ADLS requires `Service Principal` with certificate, we've created a `bash` script to automate entire deployment.
+Since ADLS requires `Service Principal` with certificate, we've created a `bash` script to automate entire deployment. Script creates a self-signed certificate and converts it to `PKCS12` format.
 
 ## Caveats
 - For simplicity we've kept as many resource names as `$CLUSTER_NAME` as possible. 
@@ -22,6 +22,7 @@ Provide password when prompted. It will be used for accessing all dashboards and
 It takes ~20 minutes to deploy all resources.
 
 ## Limitations
+- It's not possible to specify Service Principal inside an ARM template
 - Kafka doesn't yet support ADLS as primary storage.
 - Kafka cluster cannot be reached from outside.
 - Once an HDInsight cluster is provisioned, only number of worker nodes can be scaled, not the size of VMs.
