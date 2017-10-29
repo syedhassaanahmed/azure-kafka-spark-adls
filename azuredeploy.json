@@ -1,0 +1,289 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "clusterUserName": {
+            "type": "string",
+            "defaultValue": "admin",
+            "metadata": {
+                "description": "These credentials can be used to log into cluster dashboards."
+            }
+        },
+        "clusterPassword": {
+            "type": "securestring",
+            "metadata": {
+                "description": "Password must be at least 10 characters in length and must contain at least one digit, one non-alphanumeric character, and one upper or lower case letter."
+            }
+        },
+        "sshUserName": {
+            "type": "string",
+            "defaultValue": "sshuser",
+            "metadata": {
+                "description": "These credentials can be used to remotely access the cluster."
+            }
+        },
+        "aadTenantId": {
+            "type": "string",
+            "metadata": {
+                "description": "Tenant ID (guid) of the Azure Active Directory (AAD) tenant where the service principal resides."
+            }
+        },
+        "servicePrincipalObjectId": {
+            "type": "string",
+            "metadata": {
+                "description": "AAD object ID (guid) of the service principal that represents the HDInsight cluster. The service principal will be given permissions on the root folder of the Data Lake Store account."
+            }
+        },
+        "servicePrincipalApplicationId": {
+            "type": "string",
+            "metadata": {
+                "description": "AAD application ID (guid) of the service principal that represents the HDInsight cluster. The service principal will be given permissions on the root folder of the Data Lake Store account."
+            }
+        },
+        "servicePrincipalCertificateContents": {
+            "type": "securestring",
+            "metadata": {
+                "description": "Base-64-encoded contents of the PFX certificate file that can be used to authenticate as the service principal that represents the HDInsight cluster."
+            }
+        }
+    },
+    "variables": {
+        "vnetAddressPrefix": "172.16.0.0/24",
+        "vnetName": "[concat('Microsoft.Network/virtualNetworks/', resourceGroup().name)]",
+        "subnetName": "default",
+        "vnetId": "[resourceId(resourceGroup().name, 'Microsoft.Network/virtualNetworks', resourceGroup().name)]",
+        "subnetId": "[concat(variables('vnetId'), '/subnets/', variables('subnetName'))]",
+        "storageName": "[replace(replace(resourceGroup().name, '-', ''), '_', '')]",
+        "storageApiVersion": "2017-06-01",
+        "sparkClusterName": "[concat('spark-', resourceGroup().name)]",
+        "kafkaClusterName": "[concat('kafka-', resourceGroup().name)]",
+        "clusterApiVersion": "2015-03-01-preview"
+    },
+    "resources": [{
+            "name": "[resourceGroup().name]",
+            "type": "Microsoft.Network/virtualNetworks",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "2017-09-01",
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": [
+                        "[variables('vnetAddressPrefix')]"
+                    ]
+                },
+                "subnets": [{
+                    "name": "[variables('subnetName')]",
+                    "properties": {
+                        "addressPrefix": "[variables('vnetAddressPrefix')]"
+                    }
+                }]
+            }
+        },
+        {
+            "name": "[variables('storageName')]",
+            "type": "Microsoft.DataLakeStore/accounts",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "2016-11-01",
+            "properties": {
+                "initialUser": "[parameters('servicePrincipalObjectId')]"
+            }
+        },
+        {
+            "name": "[variables('storageName')]",
+            "type": "Microsoft.Storage/storageAccounts",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "[variables('storageApiVersion')]",
+            "kind": "Storage",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            }
+        },
+        {
+            "name": "[variables('sparkClusterName')]",
+            "type": "Microsoft.HDInsight/clusters",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "[variables('clusterApiVersion')]",
+            "dependsOn": [
+                "[variables('vnetName')]",
+                "[concat('Microsoft.DataLakeStore/accounts/', variables('storageName'))]"
+            ],
+            "properties": {
+                "clusterVersion": "3.6",
+                "osType": "Linux",
+                "clusterDefinition": {
+                    "kind": "spark",
+                    "configurations": {
+                        "gateway": {
+                            "restAuthCredential.isEnabled": true,
+                            "restAuthCredential.username": "[parameters('clusterUserName')]",
+                            "restAuthCredential.password": "[parameters('clusterPassword')]"
+                        },
+                        "core-site": {
+                            "fs.defaultFS": "adl://home",
+                            "dfs.adls.home.hostname": "[concat(variables('storageName'), '.azuredatalakestore.net')]",
+                            "dfs.adls.home.mountpoint": "/sparkcluster/"
+                        },
+                        "clusterIdentity": {
+                            "clusterIdentity.applicationId": "[parameters('servicePrincipalApplicationId')]",
+                            "clusterIdentity.certificate": "[parameters('servicePrincipalCertificateContents')]",
+                            "clusterIdentity.certificatePassword": "[parameters('clusterPassword')]",
+                            "clusterIdentity.aadTenantId": "[concat('https://login.windows.net/', parameters('aadTenantId'))]",
+                            "clusterIdentity.resourceUri": "https://management.core.windows.net/"
+                        }
+                    }
+                },
+                "storageProfile": {
+                    "storageaccounts": []
+                },
+                "computeProfile": {
+                    "roles": [{
+                            "name": "headnode",
+                            "targetInstanceCount": "2",
+                            "hardwareProfile": {
+                                "vmSize": "Standard_A3"
+                            },
+                            "osProfile": {
+                                "linuxOperatingSystemProfile": {
+                                    "username": "[parameters('sshUserName')]",
+                                    "password": "[parameters('clusterPassword')]"
+                                }
+                            },
+                            "virtualNetworkProfile": {
+                                "id": "[variables('vnetId')]",
+                                "subnet": "[variables('subnetId')]"
+                            }
+                        },
+                        {
+                            "name": "workernode",
+                            "targetInstanceCount": "3",
+                            "hardwareProfile": {
+                                "vmSize": "Standard_A3"
+                            },
+                            "osProfile": {
+                                "linuxOperatingSystemProfile": {
+                                    "username": "[parameters('sshUserName')]",
+                                    "password": "[parameters('clusterPassword')]"
+                                }
+                            },
+                            "virtualNetworkProfile": {
+                                "id": "[variables('vnetId')]",
+                                "subnet": "[variables('subnetId')]"
+                            }
+                        }
+                    ]
+                }
+            }
+        },
+        {
+            "name": "[variables('kafkaClusterName')]",
+            "type": "Microsoft.HDInsight/clusters",
+            "location": "[resourceGroup().location]",
+            "apiVersion": "[variables('clusterApiVersion')]",
+            "dependsOn": [
+                "[variables('vnetName')]",
+                "[concat('Microsoft.Storage/storageAccounts/', variables('storageName'))]"
+            ],
+            "properties": {
+                "clusterVersion": "3.6",
+                "osType": "Linux",
+                "clusterDefinition": {
+                    "kind": "kafka",
+                    "configurations": {
+                        "gateway": {
+                            "restAuthCredential.isEnabled": true,
+                            "restAuthCredential.username": "[parameters('clusterUserName')]",
+                            "restAuthCredential.password": "[parameters('clusterPassword')]"
+                        }
+                    }
+                },
+                "storageProfile": {
+                    "storageaccounts": [{
+                        "name": "[concat(variables('storageName'), '.blob.core.windows.net')]",
+                        "isDefault": true,
+                        "container": "kafkacluster",
+                        "key": "[listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageName')), variables('storageApiVersion')).keys[0].value]"
+                    }]
+                },
+                "computeProfile": {
+                    "roles": [{
+                            "name": "headnode",
+                            "targetInstanceCount": "2",
+                            "hardwareProfile": {
+                                "vmSize": "Standard_A3"
+                            },
+                            "osProfile": {
+                                "linuxOperatingSystemProfile": {
+                                    "username": "[parameters('sshUserName')]",
+                                    "password": "[parameters('clusterPassword')]"
+                                }
+                            },
+                            "virtualNetworkProfile": {
+                                "id": "[variables('vnetId')]",
+                                "subnet": "[variables('subnetId')]"
+                            }
+                        },
+                        {
+                            "name": "workernode",
+                            "targetInstanceCount": "3",
+                            "hardwareProfile": {
+                                "vmSize": "Standard_A3"
+                            },
+                            "dataDisksGroups": [{
+                                "disksPerNode": "3"
+                            }],
+                            "osProfile": {
+                                "linuxOperatingSystemProfile": {
+                                    "username": "[parameters('sshUserName')]",
+                                    "password": "[parameters('clusterPassword')]"
+                                }
+                            },
+                            "virtualNetworkProfile": {
+                                "id": "[variables('vnetId')]",
+                                "subnet": "[variables('subnetId')]"
+                            }
+                        },
+                        {
+                            "name": "zookeepernode",
+                            "targetInstanceCount": "3",
+                            "hardwareProfile": {
+                                "vmSize": "Standard_A1"
+                            },
+                            "osProfile": {
+                                "linuxOperatingSystemProfile": {
+                                    "username": "[parameters('sshUserName')]",
+                                    "password": "[parameters('clusterPassword')]"
+                                }
+                            },
+                            "virtualNetworkProfile": {
+                                "id": "[variables('vnetId')]",
+                                "subnet": "[variables('subnetId')]"
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ],
+    "outputs": {
+        "vnet": {
+            "type": "object",
+            "value": "[reference(resourceId('Microsoft.Network/virtualNetworks', resourceGroup().name))]"
+        },
+        "adlStoreAccount": {
+            "type": "object",
+            "value": "[reference(resourceId('Microsoft.DataLakeStore/accounts', variables('storageName')))]"
+        },
+        "storageAccount": {
+            "type": "object",
+            "value": "[reference(resourceId('Microsoft.Storage/storageAccounts', variables('storageName')))]"
+        },
+        "kafkaCluster": {
+            "type": "object",
+            "value": "[reference(resourceId('Microsoft.HDInsight/clusters', variables('kafkaClusterName')))]"
+        },
+        "sparkCluster": {
+            "type": "object",
+            "value": "[reference(resourceId('Microsoft.HDInsight/clusters', variables('sparkClusterName')))]"
+        }
+    }
+}
