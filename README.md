@@ -23,6 +23,7 @@ It takes ~20 minutes to deploy all resources.
 
 ## Limitations
 - It's not possible to create Service Principal inside an ARM template, since it lives outside of `resource groups`.
+- As of now ADLS is only available in Central US, East US 2 and North Europe.
 - Kafka doesn't yet support ADLS as primary storage.
 - Kafka cluster cannot be reached from outside.
 - Once an HDInsight cluster is provisioned, only number of worker nodes can be scaled, not the size of VMs.
