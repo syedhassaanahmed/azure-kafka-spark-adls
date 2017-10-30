@@ -22,10 +22,10 @@ Provide password when prompted. It will be used for accessing all dashboards and
 It takes ~20 minutes to deploy all resources.
 
 ## Limitations
-- It's not possible to create Service Principal inside an ARM template, since it lives outside of `resource groups`.
-- As of now ADLS is only available in Central US, East US 2 and North Europe.
-- Kafka doesn't yet support ADLS as primary storage.
-- Kafka cluster cannot be reached from outside.
+- It's not possible to create Service Principal inside an ARM template, since it resides outside  `resource groups`.
+- As of now ADLS is only [available in these regions](https://azure.microsoft.com/en-us/pricing/details/data-lake-store/): Central US, East US 2 and North Europe.
+- Kafka doesn't support ADLS as primary storage.
+- HDInsight doesn't allow direct connection to Kafka over public internet.
 - Once an HDInsight cluster is provisioned, only number of worker nodes can be scaled, not the size of VMs.
 - Existing HDInsight cluster cannot join a new VNet.
 
