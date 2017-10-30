@@ -263,27 +263,5 @@
                 }
             }
         }
-    ],
-    "outputs": {
-        "vnet": {
-            "type": "object",
-            "value": "[reference(resourceId('Microsoft.Network/virtualNetworks', resourceGroup().name))]"
-        },
-        "adlStoreAccount": {
-            "type": "object",
-            "value": "[reference(resourceId('Microsoft.DataLakeStore/accounts', variables('storageName')))]"
-        },
-        "storageAccount": {
-            "type": "object",
-            "value": "[reference(resourceId('Microsoft.Storage/storageAccounts', variables('storageName')))]"
-        },
-        "kafkaCluster": {
-            "type": "object",
-            "value": "[reference(resourceId('Microsoft.HDInsight/clusters', variables('kafkaClusterName')))]"
-        },
-        "sparkCluster": {
-            "type": "object",
-            "value": "[reference(resourceId('Microsoft.HDInsight/clusters', variables('sparkClusterName')))]"
-        }
-    }
+    ]
 }
