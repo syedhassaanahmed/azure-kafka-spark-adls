@@ -1,3 +1,5 @@
+#!/bin/bash
+
 if [ -z "$1" ]; then echo "Cluster name not supplied"; exit 1; fi
 CLUSTER_NAME=$1
 
