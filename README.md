@@ -1,6 +1,5 @@
 # azure-kafka-spark-adls
 [![Deploy to Azure](http://azuredeploy.net/deploybutton.png)](https://azuredeploy.net/)
-[![Visualize](http://armviz.io/visualizebutton.png)](http://armviz.io/#/?load=https%3A%2F%2Fraw.githubusercontent.com%2Fsyedhassaanahmed%2Fazure-kafka-spark-adls%2Fmaster%2Fazuredeploy.json)
 
 This `ARM` template deploys multiple `HDInsight` clusters (`Spark` + `Kafka`) in the same `VNet`. Spark's storage is primarily backed by `ADLS` while Kafka uses `Blob` Storage.
 
